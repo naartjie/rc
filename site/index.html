@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>browser-amd-editor</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+</head>
+
+<body>
+
+    <h1>Bootstrapping</h1>
+    <h2>Static site generator in F#</h2>
+    <p>LOLs aside, this is all I need to get started - a canvas for ideas:</p>
+    <pre>site.fsx</pre>
+    <pre><code class="language-fsharp">#r "nuget: FSharp.Formatting, 15.0.0"
+open System.IO
+open FSharp.Formatting.Markdown
+
+let document =
+    $"""
+# Bootstrapping
+## Static site generator in F#
+
+LOLs aside, this is all I need to get started - a canvas for ideas:
+
+&lt;pre&gt;site.fsx&lt;/pre&gt;
+
+```fsharp
+{File.ReadAllText(Directory.GetCurrentDirectory()+"/build-site.fsx")}
+"""
+
+document
+|&gt; Markdown.Parse
+|&gt; Markdown.ToHtml
+|&gt; fun html -&gt; File.WriteAllText($"{Directory.GetCurrentDirectory()}/site/index.html", html)
+
+</code></pre>
+
+
+    <h2>Code Editor</h2>
+    <div id="container" style="width: 800px; height: 600px; border: 1px solid grey"></div>
+
+    <script src="./js/monaco-editor/min/vs/loader.js"></script>
+    <script>
+        require.config({ paths: { vs: './js/monaco-editor/min/vs' } });
+
+        require(['vs/editor/editor.main'], function () {
+            var editor = monaco.editor.create(document.getElementById('container'), {
+                value: [
+                    'function x(): string {',
+                    '    console.log("Hello world!");',
+                    '',
+                    '    // FIXME',
+                    '    return 13;',
+                    '}'
+                ].join('\n'),
+                language: 'typescript',
+                minimap: { enabled: false }
+            });
+        });
+    </script>
+</body>
