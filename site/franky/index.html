@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+
+<head> </head>
+
+<body>
+  <p>my peer id:<span id="my-peer-id">(initializing)</span></p>
+
+  <label for="connect-to">Connect to ID:</label>
+  <input type="text" id="connect-to-id" value="">
+  <button id="connect-btn">Connect</button>
+
+  <div>
+    <pre>
+      Online | Offline
+      Active Connections:
+        Peer 1
+        Peer 2
+        Peer 3
+    </pre>
+  </div>
+
+  <br />
+
+  <label for="send-msg">Message:</label>
+  <input type="text" id="send-msg" value="">
+  <button id="send-btn">Send</button>
+
+  <div>
+    <pre>
+      Messages:
+        - (msg1)
+        - (msg2)
+        ... [up to a max]
+    </pre>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+  <script type="text/javascript">
+    "use strict"
+
+    let el = {
+      myId: document.getElementById("my-peer-id"),
+      connectToId: document.getElementById("connect-to-id"),
+      connectToBtn: document.getElementById("connect-btn"),
+      sendMsg: document.getElementById("send-msg"),
+      sendBtn: document.getElementById("send-btn"),
+    }
+
+    function make(id, { open, close, connection, disconnected }) {
+      let lastPeerId = null;
+      let peerjs = new Peer(id || null, { debug: 2 });
+
+      peerjs.on('open', (id) => {
+        if (peerjs.id === null) {
+          // Workaround for peerjs.reconnect deleting previous id
+          console.error('Received null id from peerjs open');
+          peerjs.id = lastPeerId;
+        } else {
+          lastPeerId = peerjs.id;
+        }
+
+        open && open(id);
+
+        peerjs.on("connection", (c) => {
+          console.log("peerjs got a new connection", c);
+          connection && connection(c)
+        });
+
+        peerjs.on('disconnected', function (c_maybe) {
+          console.log("Connection lost... reconnecting (c_maybe?)", c_maybe);
+          disconnected && disconnected()
+
+          // Workaround for peerjs.reconnect deleting previous id
+          peerjs.id = lastPeerId;
+          peerjs._lastServerId = lastPeerId;
+          peerjs.reconnect();
+        });
+
+        peerjs.on('close', () => {
+          console.error("peerjs closed?")
+          close && close()
+        });
+        peerjs.on('error', err => console.error("peerjs error", err));
+      });
+
+      return peerjs;
+    }
+
+    function connect(peerjs, peerId) {
+      console.log(`peerjs.connect(${peerId})`)
+      let conn = peerjs.connect(peerId, { reliable: true });
+
+      conn.on('open', () => console.log("new connection to id: " + conn.peer));
+      conn.on('close', () => console.error("connection closed"));
+      conn.on('data', handleIncomingData);
+
+      return conn;
+    }
+
+    let connections = []
+    let myId = new URLSearchParams(window.location.search).get('id')
+    let peerjs = make(myId, {
+      open: (id) => el.myId.innerHTML = id,
+      connection: c => {
+        connections.push(c)
+        c.on("data", handleIncomingData)
+        c.on("close", () => console.log("connection onclose event for", c))
+      }
+    });
+
+    el.connectToBtn.addEventListener("click", function () {
+      let id = el.connectToId.value;
+      let c = connect(peerjs, id);
+      connections.push(c);
+    })
+
+    el.sendBtn.addEventListener("click", function () {
+      let msg = el.sendMsg.value;
+      console.log(`sending message to ${connections.length} peer(s)`, { msg })
+      connections.forEach(c => {
+        console.log(`sending to ${c.peer}`)
+        c.send(msg)
+      });
+    })
+
+    function handleIncomingData(data) {
+      console.log("got datas", data)
+    }
+
+  </script>
+
+
+</body>
+
+</html>
